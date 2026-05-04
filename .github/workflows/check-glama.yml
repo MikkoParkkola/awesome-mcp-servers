@@ -5,15 +5,17 @@ on:
     types: [opened, edited, synchronize, closed]
 
 permissions:
-  contents: read
-  pull-requests: write
-  issues: write
+  contents: none
+  pull-requests: none
+  issues: none
 
 jobs:
   # Post-merge welcome comment
   welcome:
     if: github.event.action == 'closed' && github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     steps:
       - name: Post welcome comment
         uses: actions/github-script@v7
@@ -47,22 +49,26 @@ jobs:
   check-submission:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: write
     steps:
-      - name: Checkout base branch
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.base.ref }}
-
       - name: Validate PR submission
         uses: actions/github-script@v7
         with:
           script: |
-            const fs = require('fs');
             const { owner, repo } = context.repo;
             const pr_number = context.payload.pull_request.number;
 
-            // Read existing README to check for duplicates
-            const readme = fs.readFileSync('README.md', 'utf8');
+            // Read trusted base content without checking out repository files in a privileged PR workflow.
+            const { data: readmeContent } = await github.rest.repos.getContent({
+              owner,
+              repo,
+              path: 'README.md',
+              ref: context.payload.pull_request.base.sha,
+            });
+            const readme = Buffer.from(readmeContent.content, readmeContent.encoding).toString('utf8');
             const existingUrls = new Set();
             const urlRegex = /\(https:\/\/github\.com\/[^)]+\)/gi;
             for (const match of readme.matchAll(urlRegex)) {
