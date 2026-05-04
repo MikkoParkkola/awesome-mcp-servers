@@ -33,16 +33,20 @@ jobs:
             });
 
             if (!comments.some(c => c.body.includes(marker))) {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: pr_number,
-                body: `${marker}\nThank you for your contribution! Your server has been merged.
+              try {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr_number,
+                  body: `${marker}\nThank you for your contribution! Your server has been merged.
 
             Are you in the MCP [Discord](https://glama.ai/mcp/discord)? Let me know your Discord username and I will give you a **server-author** flair.
 
             If you also have a remote server, you can list it under https://glama.ai/mcp/connectors`
-              });
+                });
+              } catch (error) {
+                core.warning(`Unable to post welcome comment: ${error.message}`);
+              }
             }
 
   # Validation checks (only on open PRs)
