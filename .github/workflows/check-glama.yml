@@ -61,6 +61,19 @@ jobs:
             const { owner, repo } = context.repo;
             const pr_number = context.payload.pull_request.number;
 
+            // Get the PR diff
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner,
+              repo,
+              pull_number: pr_number,
+              per_page: 100,
+            });
+
+            if (!files.some(file => file.filename === 'README.md')) {
+              console.log('No README.md changes; skipping submission validation labels and comments.');
+              return;
+            }
+
             // Read trusted base content without checking out repository files in a privileged PR workflow.
             const { data: readmeContent } = await github.rest.repos.getContent({
               owner,
@@ -74,14 +87,6 @@ jobs:
             for (const match of readme.matchAll(urlRegex)) {
               existingUrls.add(match[0].toLowerCase());
             }
-
-            // Get the PR diff
-            const { data: files } = await github.rest.pulls.listFiles({
-              owner,
-              repo,
-              pull_number: pr_number,
-              per_page: 100,
-            });
 
             // Permitted emojis
             const permittedEmojis = [
